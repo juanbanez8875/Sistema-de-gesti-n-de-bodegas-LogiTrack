@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogiTrack — Panel</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">📦 Logi<span>Track</span></div>
+    <div class="sidebar-user" id="userName"></div>
+    <nav class="sidebar-nav">
+      <a data-tab="bodegas" class="active">🏠 Bodegas</a>
+      <a data-tab="productos">📦 Productos</a>
+      <a data-tab="movimientos">🔄 Movimientos</a>
+      <a data-tab="reportes">📊 Reportes</a>
+      <a data-tab="auditorias" id="navAuditorias">🔍 Auditorías</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-danger btn-block" id="btnLogout">Cerrar Sesión</button>
+      <p style="margin-top:8px;">LogiTrack S.A. v1.0</p>
+    </div>
+  </aside>
+
+  <!-- ===================== CONTENIDO ===================== -->
+  <main class="content">
+
+    <!-- ---- BODEGAS ---- -->
+    <section id="bodegas" class="tab-section active">
+      <div class="content-header">
+        <h2>Gestión de Bodegas</h2>
+        <button class="btn btn-accent" id="btnNewBodega">+ Nueva Bodega</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Ubicación</th><th>Capacidad</th><th>Encargado</th><th>Acciones</th></tr></thead>
+          <tbody id="bodegasBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- PRODUCTOS ---- -->
+    <section id="productos" class="tab-section">
+      <div class="content-header">
+        <h2>Gestión de Productos</h2>
+        <button class="btn btn-accent" id="btnNewProducto">+ Nuevo Producto</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Acciones</th></tr></thead>
+          <tbody id="productosBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- MOVIMIENTOS ---- -->
+    <section id="movimientos" class="tab-section">
+      <div class="content-header">
+        <h2>Movimientos de Inventario</h2>
+        <button class="btn btn-accent" id="btnNewMovimiento">+ Nuevo Movimiento</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>ID</th><th>Fecha</th><th>Tipo</th><th>Origen → Destino</th><th>Usuario</th><th>Detalles</th></tr></thead>
+          <tbody id="movimientosBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- REPORTES ---- -->
+    <section id="reportes" class="tab-section">
+      <div class="content-header"><h2>Reportes y Consultas</h2></div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Bodegas</div><div class="stat-value" id="statBodegas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total Productos</div><div class="stat-value" id="statProductos">—</div></div>
+        <div class="stat-card"><div class="stat-label">Stock Global</div><div class="stat-value" id="statStockTotal">—</div></div>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Stock Total por Bodega</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Bodega</th><th>Producto</th><th>Cantidad</th></tr></thead>
+          <tbody id="stockBodegaBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Productos Más Movidos</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Producto</th><th>Total Movido</th></tr></thead>
+          <tbody id="prodMovidoBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Productos con Stock Bajo (&lt; 10)</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th></tr></thead>
+          <tbody id="stockBajoBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- AUDITORIAS ---- -->
+    <section id="auditorias" class="tab-section">
+      <div class="content-header"><h2>Registro de Auditoría</h2></div>
+
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-group" style="margin:0;">
+          <label>Por usuario</label>
+          <input type="text" id="filtroUsuario" placeholder="username">
+        </div>
+        <button class="btn btn-primary btn-sm" id="btnFiltroUsuario">Buscar</button>
+        <div class="form-group" style="margin:0;">
+          <label>Por tipo</label>
+          <select id="filtroTipo"><option value="INSERT">INSERT</option><option value="UPDATE">UPDATE</option><option value="DELETE">DELETE</option></select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btnFiltroTipo">Buscar</button>
+        <div class="form-group" style="margin:0;">
+          <label>Por entidad</label>
+          <input type="text" id="filtroEntidad" placeholder="Bodega, Producto…">
+        </div>
+        <button class="btn btn-primary btn-sm" id="btnFiltroEntidad">Buscar</button>
+        <button class="btn btn-accent btn-sm" id="btnAudAll">Ver todas</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>ID</th><th>Fecha/Hora</th><th>Tipo</th><th>Entidad</th><th>Usuario</th><th>Valores</th></tr></thead>
+          <tbody id="auditoriasBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL BODEGA ===================== -->
+<div class="modal-overlay" id="bodegaModal">
+  <div class="modal">
+    <h3 id="bodegaModalTitle">Nueva Bodega</h3>
+    <form id="bodegaForm">
+      <input type="hidden" id="bodegaId">
+      <div class="form-group"><label>Nombre</label><input type="text" id="bodegaNombre" required></div>
+      <div class="form-group"><label>Ubicación</label><input type="text" id="bodegaUbicacion"></div>
+      <div class="form-group"><label>Capacidad</label><input type="number" id="bodegaCapacidad" min="0"></div>
+      <div class="form-group"><label>Encargado</label><input type="text" id="bodegaEncargado"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL PRODUCTO ===================== -->
+<div class="modal-overlay" id="productoModal">
+  <div class="modal">
+    <h3 id="productoModalTitle">Nuevo Producto</h3>
+    <form id="productoForm">
+      <input type="hidden" id="productoId">
+      <div class="form-group"><label>Nombre</label><input type="text" id="productoNombre" required></div>
+      <div class="form-group"><label>Categoría</label><input type="text" id="productoCategoria"></div>
+      <div class="form-group"><label>Stock</label><input type="number" id="productoStock" min="0" required></div>
+      <div class="form-group"><label>Precio</label><input type="number" step="0.01" id="productoPrecio" min="0" required></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL MOVIMIENTO ===================== -->
+<div class="modal-overlay" id="movimientoModal">
+  <div class="modal">
+    <h3>Nuevo Movimiento</h3>
+    <form id="movimientoForm">
+      <div class="form-group"><label>Tipo de movimiento</label>
+        <select id="movTipo"><option value="ENTRADA">ENTRADA</option><option value="SALIDA">SALIDA</option><option value="TRANSFERENCIA">TRANSFERENCIA</option></select>
+      </div>
+      <div class="form-group" id="fieldOrigen"><label>Bodega Origen</label><select id="movBodegaOrigen"></select></div>
+      <div class="form-group" id="fieldDestino"><label>Bodega Destino</label><select id="movBodegaDestino"></select></div>
+      <label style="font-weight:600;display:block;margin-bottom:8px;">Detalles (producto y cantidad)</label>
+      <div id="detalleContainer"></div>
+      <button type="button" class="btn btn-primary btn-sm" id="btnAddDetalle" style="margin-top:8px;">+ Agregar detalle</button>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close>Cancelar</button>
+        <button type="submit" class="btn btn-accent">Registrar Movimiento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

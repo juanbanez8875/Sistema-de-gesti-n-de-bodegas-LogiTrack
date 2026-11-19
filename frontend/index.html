@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogiTrack — Iniciar Sesión</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="logo">📦</div>
+      <h1>LogiTrack</h1>
+      <p class="subtitle">Sistema de Gestión de Bodegas</p>
+
+      <div id="alertBox" class="alert alert-error"></div>
+
+      <!-- Login -->
+      <div id="loginSection">
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginUser">Usuario</label>
+            <input type="text" id="loginUser" required placeholder="admin">
+          </div>
+          <div class="form-group">
+            <label for="loginPass">Contraseña</label>
+            <input type="password" id="loginPass" required placeholder="admin123">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
+        </form>
+        <p style="text-align:center;margin-top:16px;font-size:13px;">
+          ¿No tiene cuenta? <a href="#" id="showRegister">Registrarse</a>
+        </p>
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-light);">
+          Usuarios de prueba: admin / admin123 &middot; empleado / empleado123
+        </p>
+      </div>
+
+      <!-- Registro -->
+      <div id="registerSection" style="display:none;">
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="regUser">Usuario</label>
+            <input type="text" id="regUser" required>
+          </div>
+          <div class="form-group">
+            <label for="regPass">Contraseña</label>
+            <input type="password" id="regPass" required minlength="4">
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email</label>
+            <input type="email" id="regEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="regName">Nombre completo</label>
+            <input type="text" id="regName" required>
+          </div>
+          <div class="form-group">
+            <label for="regRole">Rol</label>
+            <select id="regRole">
+              <option value="EMPLEADO">EMPLEADO</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-accent btn-block">Registrarse</button>
+        </form>
+        <p style="text-align:center;margin-top:16px;font-size:13px;">
+          <a href="#" id="showLogin">Volver a inicio de sesión</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>
