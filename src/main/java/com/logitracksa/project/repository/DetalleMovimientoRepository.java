@@ -1,8 +1,10 @@
 package com.logitracksa.project.repository;
 
 import com.logitracksa.project.model.entity.DetalleMovimiento;
+import com.logitracksa.project.model.entity.Movimiento;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -21,4 +23,8 @@ public interface DetalleMovimientoRepository extends JpaRepository<DetalleMovimi
             ORDER BY SUM(d.cantidad) DESC
             """)
     List<Object[]> findProductosMasMovidos();
+
+    /** Historial de movimientos de un producto (trazabilidad), del más reciente al más antiguo. */
+    @Query("SELECT DISTINCT d.movimiento FROM DetalleMovimiento d WHERE d.producto.id = :productoId ORDER BY d.movimiento.fecha DESC")
+    List<Movimiento> findMovimientosPorProducto(@Param("productoId") Long productoId);
 }

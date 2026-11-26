@@ -2,16 +2,21 @@ package com.logitracksa.project.service;
 
 import com.logitracksa.project.exception.ResourceNotFoundException;
 import com.logitracksa.project.model.dto.request.ProductoRequest;
+import com.logitracksa.project.model.dto.response.PageResponse;
 import com.logitracksa.project.model.dto.response.ProductoResponse;
 import com.logitracksa.project.model.entity.Producto;
 import com.logitracksa.project.repository.ProductoRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 /**
- * CRUD de productos y consulta de stock bajo.
+ * CRUD de productos, búsqueda por nombre/categoría y consulta de stock bajo.
  */
 @Service
 @Transactional
@@ -33,6 +38,38 @@ public class ProductoService {
     @Transactional(readOnly = true)
     public ProductoResponse findById(Long id) {
         return toResponse(getProducto(id));
+    }
+
+    /** Paginación y ordenamiento. Parámetros: page, size, sort (campo), dir (ASC/DESC). */
+    @Transactional(readOnly = true)
+    public PageResponse<ProductoResponse> findAllPaged(int page, int size, String sort, String dir) {
+        Sort.Direction direction = "DESC".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort));
+        Page<Producto> result = productoRepository.findAll(pageable);
+        return new PageResponse<>(
+                result.getContent().stream().map(this::toResponse).toList(),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isLast()
+        );
+    }
+
+    /** Búsqueda parcial por nombre (LIKE, insensible a mayúsculas). */
+    @Transactional(readOnly = true)
+    public List<ProductoResponse> buscarPorNombre(String nombre) {
+        return productoRepository.buscarPorNombre(nombre).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** Búsqueda exacta por categoría (insensible a mayúsculas). */
+    @Transactional(readOnly = true)
+    public List<ProductoResponse> buscarPorCategoria(String categoria) {
+        return productoRepository.buscarPorCategoria(categoria).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     /** Productos con stock menor a 10 unidades. */
@@ -66,7 +103,7 @@ public class ProductoService {
 
     // ----- helpers -----
 
-    Producto getProducto(Long id) {
+    public Producto getProducto(Long id) {
         return productoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + id));
     }
@@ -78,7 +115,7 @@ public class ProductoService {
         p.setPrecio(req.getPrecio());
     }
 
-    private ProductoResponse toResponse(Producto p) {
+    public ProductoResponse toResponse(Producto p) {
         return new ProductoResponse(
                 p.getId(), p.getNombre(), p.getCategoria(), p.getStock(), p.getPrecio()
         );

@@ -65,13 +65,13 @@ project/
 
 ## 🚀 Instalación y Ejecución
 
-### Opción 1: H2 en memoria (sin instalar nada)
+### Opción 1: H2 en memoria (por defecto — sin instalar nada)
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-La aplicación arranca en `http://localhost:8080` con base de datos H2 en memoria.
+La aplicación arranca en `http://localhost:8080` con base de datos H2 en memoria. No requiere MySQL.
 
 ### Opción 2: MySQL
 
@@ -82,7 +82,7 @@ La aplicación arranca en `http://localhost:8080` con base de datos H2 en memori
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
 ```
 
-Los datos de conexión están en `application-mysql.properties` (usuario `root`, password `root`). Ajuste según su entorno.
+Los datos de conexión por defecto del perfil MySQL son usuario `root`, password `root` (archivo `application-mysql.properties`). Ajuste según su entorno.
 
 ### Scripts SQL independientes
 

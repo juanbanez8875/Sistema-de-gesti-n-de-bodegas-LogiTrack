@@ -71,10 +71,18 @@ const API = (() => {
     return data;
   }
 
+  function qs(params) {
+    return '?' + Object.entries(params)
+      .map(([k, v]) => k + '=' + encodeURIComponent(v))
+      .join('&');
+  }
+
   // ---- Auth ----
   const auth = {
     login: (username, password) => request('POST', '/auth/login', { username, password }),
-    register: (data) => request('POST', '/auth/register', data)
+    register: (data) => request('POST', '/auth/register', data),
+    perfil: () => request('GET', '/auth/perfil'),
+    cambiarPassword: (data) => request('PUT', '/auth/password', data)
   };
 
   // ---- Bodegas ----
@@ -83,7 +91,10 @@ const API = (() => {
     get: (id) => request('GET', '/bodegas/' + id),
     create: (data) => request('POST', '/bodegas', data),
     update: (id, data) => request('PUT', '/bodegas/' + id, data),
-    remove: (id) => request('DELETE', '/bodegas/' + id)
+    remove: (id) => request('DELETE', '/bodegas/' + id),
+    buscar: (q) => request('GET', '/bodegas/buscar' + qs({ q })),
+    paginado: (page, size, sort, dir) =>
+      request('GET', '/bodegas/paginado' + qs({ page, size, sort, dir }))
   };
 
   // ---- Productos ----
@@ -92,7 +103,12 @@ const API = (() => {
     get: (id) => request('GET', '/productos/' + id),
     create: (data) => request('POST', '/productos', data),
     update: (id, data) => request('PUT', '/productos/' + id, data),
-    remove: (id) => request('DELETE', '/productos/' + id)
+    remove: (id) => request('DELETE', '/productos/' + id),
+    buscarPorNombre: (nombre) => request('GET', '/productos/buscar' + qs({ nombre })),
+    buscarPorCategoria: (categoria) => request('GET', '/productos/categoria' + qs({ categoria })),
+    paginado: (page, size, sort, dir) =>
+      request('GET', '/productos/paginado' + qs({ page, size, sort, dir })),
+    historial: (id) => request('GET', '/productos/' + id + '/historial')
   };
 
   // ---- Movimientos ----
@@ -100,12 +116,15 @@ const API = (() => {
     list: () => request('GET', '/movimientos'),
     get: (id) => request('GET', '/movimientos/' + id),
     create: (data) => request('POST', '/movimientos', data),
-    byFecha: (inicio, fin) => request('GET', '/movimientos/fecha?inicio=' + inicio + '&fin=' + fin)
+    byFecha: (inicio, fin) => request('GET', '/movimientos/fecha?inicio=' + inicio + '&fin=' + fin),
+    paginado: (page, size, sort, dir) =>
+      request('GET', '/movimientos/paginado' + qs({ page, size, sort, dir }))
   };
 
   // ---- Reportes ----
   const reportes = {
     resumen: () => request('GET', '/reportes/resumen'),
+    estadisticas: () => request('GET', '/reportes/estadisticas'),
     stockBajo: () => request('GET', '/reportes/stock-bajo')
   };
 

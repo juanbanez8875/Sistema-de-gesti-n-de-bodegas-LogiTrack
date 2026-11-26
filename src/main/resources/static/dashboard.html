@@ -18,7 +18,9 @@
       <a data-tab="productos">📦 Productos</a>
       <a data-tab="movimientos">🔄 Movimientos</a>
       <a data-tab="reportes">📊 Reportes</a>
+      <a data-tab="estadisticas">📈 Estadísticas</a>
       <a data-tab="auditorias" id="navAuditorias">🔍 Auditorías</a>
+      <a data-tab="perfil">👤 Mi Perfil</a>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-danger btn-block" id="btnLogout">Cerrar Sesión</button>
@@ -35,6 +37,11 @@
         <h2>Gestión de Bodegas</h2>
         <button class="btn btn-accent" id="btnNewBodega">+ Nueva Bodega</button>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input type="text" id="searchBodega" placeholder="Buscar por nombre o ubicación…" style="flex:1;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;">
+        <button class="btn btn-primary btn-sm" id="btnSearchBodega">Buscar</button>
+        <button class="btn btn-sm" id="btnSearchBodegaReset">✕ Limpiar</button>
+      </div>
       <div class="table-wrapper">
         <table>
           <thead><tr><th>ID</th><th>Nombre</th><th>Ubicación</th><th>Capacidad</th><th>Encargado</th><th>Acciones</th></tr></thead>
@@ -48,6 +55,13 @@
       <div class="content-header">
         <h2>Gestión de Productos</h2>
         <button class="btn btn-accent" id="btnNewProducto">+ Nuevo Producto</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <input type="text" id="searchProducto" placeholder="Buscar por nombre…" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;">
+        <button class="btn btn-primary btn-sm" id="btnSearchProducto">Buscar nombre</button>
+        <input type="text" id="filterCategoria" placeholder="Categoría exacta…" style="flex:1;min-width:140px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;">
+        <button class="btn btn-primary btn-sm" id="btnFilterCategoria">Filtrar</button>
+        <button class="btn btn-sm" id="btnProductoReset">✕ Limpiar</button>
       </div>
       <div class="table-wrapper">
         <table>
@@ -137,6 +151,58 @@
       </div>
     </section>
 
+    <!-- ---- ESTADÍSTICAS ---- -->
+    <section id="estadisticas" class="tab-section">
+      <div class="content-header"><h2>Estadísticas Agregadas</h2></div>
+      <div class="stats-grid" id="statsGlobales"></div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Movimientos por Tipo</h3>
+      <div class="table-wrapper">
+        <table><thead><tr><th>Tipo</th><th>Cantidad</th></tr></thead>
+          <tbody id="statsTipoBody"></tbody></table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Movimientos por Mes</h3>
+      <div class="table-wrapper">
+        <table><thead><tr><th>Año</th><th>Mes</th><th>Movimientos</th></tr></thead>
+          <tbody id="statsMesBody"></tbody></table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Productos por Categoría</h3>
+      <div class="table-wrapper">
+        <table><thead><tr><th>Categoría</th><th>Productos</th><th>Stock Total</th></tr></thead>
+          <tbody id="statsCatBody"></tbody></table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;color:var(--primary);">Valor Monetario por Bodega</h3>
+      <div class="table-wrapper">
+        <table><thead><tr><th>Bodega</th><th>Valor ($)</th></tr></thead>
+          <tbody id="statsValorBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---- PERFIL ---- -->
+    <section id="perfil" class="tab-section">
+      <div class="content-header"><h2>Mi Perfil</h2></div>
+      <div style="max-width:500px;">
+        <div class="table-wrapper" style="margin-bottom:24px;">
+          <table id="perfilTable"><tbody></tbody></table>
+        </div>
+
+        <h3 style="margin-bottom:16px;color:var(--primary);">Cambiar Contraseña</h3>
+        <div id="alertPerfil" class="alert"></div>
+        <form id="passwordForm">
+          <div class="form-group"><label>Contraseña actual</label>
+            <input type="password" id="pwActual" required minlength="4"></div>
+          <div class="form-group"><label>Nueva contraseña</label>
+            <input type="password" id="pwNueva" required minlength="4"></div>
+          <div class="form-group"><label>Confirmar nueva contraseña</label>
+            <input type="password" id="pwConfirm" required minlength="4"></div>
+          <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
+        </form>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -194,6 +260,22 @@
         <button type="submit" class="btn btn-accent">Registrar Movimiento</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL HISTORIAL ===================== -->
+<div class="modal-overlay" id="historialModal">
+  <div class="modal" style="width:650px;">
+    <h3 id="historialTitle">Historial del Producto</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>ID Mov.</th><th>Fecha</th><th>Tipo</th><th>Detalles</th></tr></thead>
+        <tbody id="historialBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" data-close>Cerrar</button>
+    </div>
   </div>
 </div>
 

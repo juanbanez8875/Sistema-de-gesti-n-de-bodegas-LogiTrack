@@ -1,9 +1,12 @@
 package com.logitracksa.project.service;
 
 import com.logitracksa.project.exception.BusinessException;
+import com.logitracksa.project.exception.ResourceNotFoundException;
 import com.logitracksa.project.model.dto.auth.JwtResponse;
 import com.logitracksa.project.model.dto.auth.LoginRequest;
 import com.logitracksa.project.model.dto.auth.RegisterRequest;
+import com.logitracksa.project.model.dto.request.CambioPasswordRequest;
+import com.logitracksa.project.model.dto.response.PerfilResponse;
 import com.logitracksa.project.model.entity.Usuario;
 import com.logitracksa.project.repository.UsuarioRepository;
 import com.logitracksa.project.security.JwtTokenProvider;
@@ -15,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Autenticación: login (genera JWT) y registro de nuevos usuarios.
+ * Autenticación: login (genera JWT), registro, perfil y cambio de contraseña.
  */
 @Service
 public class AuthService {
@@ -75,5 +78,37 @@ public class AuthService {
         String token = jwtTokenProvider.generateToken(usuario.getUsername(), usuario.getRol().name());
         return new JwtResponse(token, "Bearer", usuario.getUsername(),
                 usuario.getRol(), jwtTokenProvider.getExpiration());
+    }
+
+    /**
+     * Devuelve el perfil del usuario autenticado (sin contraseña).
+     */
+    @Transactional(readOnly = true)
+    public PerfilResponse perfil(String username) {
+        Usuario u = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
+        return new PerfilResponse(
+                u.getId(), u.getUsername(), u.getEmail(), u.getNombre(), u.getRol(), u.getEnabled()
+        );
+    }
+
+    /**
+     * Cambia la contraseña del usuario autenticado.
+     * Verifica la contraseña actual antes de actualizar.
+     */
+    @Transactional
+    public void cambiarPassword(String username, CambioPasswordRequest request) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
+
+        if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
+            throw new BusinessException("La contraseña actual es incorrecta");
+        }
+        if (request.getPasswordActual().equals(request.getPasswordNueva())) {
+            throw new BusinessException("La nueva contraseña debe ser diferente a la actual");
+        }
+
+        usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+        usuarioRepository.save(usuario);
     }
 }

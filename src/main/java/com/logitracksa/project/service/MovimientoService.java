@@ -6,8 +6,14 @@ import com.logitracksa.project.model.dto.request.DetalleMovimientoRequest;
 import com.logitracksa.project.model.dto.request.MovimientoRequest;
 import com.logitracksa.project.model.dto.response.DetalleMovimientoResponse;
 import com.logitracksa.project.model.dto.response.MovimientoResponse;
+import com.logitracksa.project.model.dto.response.PageResponse;
 import com.logitracksa.project.model.entity.*;
+import com.logitracksa.project.model.enums.TipoMovimiento;
 import com.logitracksa.project.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +24,7 @@ import java.util.List;
  * Registro de movimientos de inventario y actualización de stock.
  * Cada movimiento actualiza el stock global (Producto.stock) y el stock
  * por bodega (Inventario.cantidad) según el tipo de operación.
+ * En las ENTRADAS se valida la capacidad disponible de la bodega destino.
  */
 @Service
 @Transactional
@@ -28,22 +35,52 @@ public class MovimientoService {
     private final ProductoRepository productoRepository;
     private final InventarioRepository inventarioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final DetalleMovimientoRepository detalleMovimientoRepository;
 
     public MovimientoService(MovimientoRepository movimientoRepository,
                                BodegaRepository bodegaRepository,
                                ProductoRepository productoRepository,
                                InventarioRepository inventarioRepository,
-                               UsuarioRepository usuarioRepository) {
+                               UsuarioRepository usuarioRepository,
+                               DetalleMovimientoRepository detalleMovimientoRepository) {
         this.movimientoRepository = movimientoRepository;
         this.bodegaRepository = bodegaRepository;
         this.productoRepository = productoRepository;
         this.inventarioRepository = inventarioRepository;
         this.usuarioRepository = usuarioRepository;
+        this.detalleMovimientoRepository = detalleMovimientoRepository;
     }
 
     @Transactional(readOnly = true)
     public List<MovimientoResponse> findAll() {
         return movimientoRepository.findAllByOrderByIdDesc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** Paginación y ordenamiento dinámico de movimientos. */
+    @Transactional(readOnly = true)
+    public PageResponse<MovimientoResponse> findAllPaged(int page, int size, String sort, String dir) {
+        Sort.Direction direction = "DESC".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort));
+        Page<Movimiento> result = movimientoRepository.findAll(pageable);
+        return new PageResponse<>(
+                result.getContent().stream().map(this::toResponse).toList(),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isLast()
+        );
+    }
+
+    /** Historial de movimientos de un producto (trazabilidad). */
+    @Transactional(readOnly = true)
+    public List<MovimientoResponse> historialPorProducto(Long productoId) {
+        if (!productoRepository.existsById(productoId)) {
+            throw new ResourceNotFoundException("Producto no encontrado con id: " + productoId);
+        }
+        return detalleMovimientoRepository.findMovimientosPorProducto(productoId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -63,8 +100,8 @@ public class MovimientoService {
     }
 
     /**
-     * Registra un movimiento, valida bodegas según el tipo, crea los detalles
-     * y actualiza el stock global y por bodega.
+     * Registra un movimiento, valida bodegas y capacidad según el tipo,
+     * crea los detalles y actualiza el stock global y por bodega.
      */
     public MovimientoResponse registrar(MovimientoRequest request, String username) {
         Usuario usuario = usuarioRepository.findByUsername(username)
@@ -97,6 +134,9 @@ public class MovimientoService {
             }
         }
 
+        // Validar capacidad de la bodega destino en las ENTRADAs
+        validarCapacidad(mov, request);
+
         // Crear detalles y actualizar stock
         for (DetalleMovimientoRequest det : request.getDetalles()) {
             Producto producto = productoRepository.findById(det.getProductoId())
@@ -117,28 +157,45 @@ public class MovimientoService {
     }
 
     /**
+     * Verifica que la bodega destino de una ENTRADA tenga capacidad suficiente
+     * para absorber las unidades entrantes.
+     */
+    private void validarCapacidad(Movimiento mov, MovimientoRequest request) {
+        Bodega destino = mov.getBodegaDestino();
+        if (mov.getTipo() != TipoMovimiento.ENTRADA || destino == null || destino.getCapacidad() == null) {
+            return;
+        }
+        int ocupado = inventarioRepository.stockTotalEnBodega(destino.getId());
+        int entrante = request.getDetalles().stream()
+                .mapToInt(DetalleMovimientoRequest::getCantidad)
+                .sum();
+        if (ocupado + entrante > destino.getCapacidad()) {
+            throw new BusinessException(
+                    "Capacidad insuficiente en " + destino.getNombre()
+                    + ": ocupado=" + ocupado + ", entrante=" + entrante
+                    + ", capacidad=" + destino.getCapacidad()
+            );
+        }
+    }
+
+    /**
      * Actualiza el stock global (Producto) y por bodega (Inventario)
      * según el tipo de movimiento.
      */
     private void actualizarStock(Movimiento mov, Producto producto, int cantidad) {
         switch (mov.getTipo()) {
             case ENTRADA -> {
-                // Stock global aumenta
                 producto.setStock(safe(producto.getStock()) + cantidad);
-                // Stock por bodega aumenta
                 ajustarInventario(mov.getBodegaDestino(), producto, cantidad, true);
             }
             case SALIDA -> {
-                // Validar stock global
                 int nuevo = safe(producto.getStock()) - cantidad;
                 if (nuevo < 0)
                     throw new BusinessException("Stock global insuficiente para " + producto.getNombre());
                 producto.setStock(nuevo);
-                // Validar y ajustar stock por bodega
                 ajustarInventario(mov.getBodegaOrigen(), producto, cantidad, false);
             }
             case TRANSFERENCIA -> {
-                // Stock global no cambia: solo se mueve entre bodegas
                 ajustarInventario(mov.getBodegaOrigen(), producto, cantidad, false);
                 ajustarInventario(mov.getBodegaDestino(), producto, cantidad, true);
             }

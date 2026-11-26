@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('userName').innerHTML = '<strong>' + userName + '</strong><br>' + roleBadge;
 
-  // Ocultar pestaña de auditorías si no es admin
   if (!isAdmin) {
     document.getElementById('navAuditorias').classList.add('hidden');
   }
@@ -41,17 +40,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Cargar la primera pestaña
   loadTab('bodegas');
 
   // ============================================================
   //  BODEGAS
   // ============================================================
-  async function loadBodegas() {
+  async function loadBodegas(filtro) {
     try {
-      const list = await API.bodegas.list();
-      const tbody = document.getElementById('bodegasBody');
-      tbody.innerHTML = list.map(b => `
+      const list = filtro
+        ? await API.bodegas.buscar(filtro)
+        : await API.bodegas.list();
+      renderBodegas(list);
+    } catch (err) { showTableError('bodegasBody', 6, err.message); }
+  }
+
+  function renderBodegas(list) {
+    document.getElementById('bodegasBody').innerHTML = list.length === 0
+      ? '<tr><td colspan="6" class="empty-state">Sin resultados</td></tr>'
+      : list.map(b => `
         <tr>
           <td>${b.id}</td>
           <td>${b.nombre}</td>
@@ -60,12 +66,17 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${b.encargado || ''}</td>
           <td>${adminActions('bodega', b.id)}</td>
         </tr>`).join('');
-      bindEditDelete('bodega');
-    } catch (err) { showError('bodegas', err.message); }
+    bindEditDelete('bodega');
   }
 
-  document.getElementById('btnNewBodega').addEventListener('click', () => {
-    openBodegaModal();
+  document.getElementById('btnNewBodega').addEventListener('click', () => openBodegaModal());
+  document.getElementById('btnSearchBodega').addEventListener('click', () => {
+    const q = document.getElementById('searchBodega').value.trim();
+    if (q) loadBodegas(q);
+  });
+  document.getElementById('btnSearchBodegaReset').addEventListener('click', () => {
+    document.getElementById('searchBodega').value = '';
+    loadBodegas();
   });
 
   function openBodegaModal(id, data) {
@@ -97,28 +108,91 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   //  PRODUCTOS
   // ============================================================
-  async function loadProductos() {
+  let productosCache = [];
+  let bodegasCache = [];
+
+  async function loadProductos(mode, q) {
     try {
-      const list = await API.productos.list();
-      const tbody = document.getElementById('productosBody');
-      tbody.innerHTML = list.map(p => {
-        const bajo = p.stock < 10 ? '<span class="badge-stock-bajo tag">STOCK BAJO</span>' : '';
-        return `
-        <tr>
-          <td>${p.id}</td>
-          <td>${p.nombre}</td>
-          <td>${p.categoria || ''}</td>
-          <td>${p.stock} ${bajo}</td>
-          <td>$${p.precio}</td>
-          <td>${adminActions('producto', p.id)}</td>
-        </tr>`;
-      }).join('');
-      bindEditDelete('producto');
-    } catch (err) { showError('productos', err.message); }
+      let list;
+      if (mode === 'nombre') list = await API.productos.buscarPorNombre(q);
+      else if (mode === 'categoria') list = await API.productos.buscarPorCategoria(q);
+      else list = await API.productos.list();
+      productosCache = await API.productos.list();
+      renderProductos(list);
+    } catch (err) { showTableError('productosBody', 6, err.message); }
   }
 
-  document.getElementById('btnNewProducto').addEventListener('click', () => {
-    openProductoModal();
+  function renderProductos(list) {
+    document.getElementById('productosBody').innerHTML = list.length === 0
+      ? '<tr><td colspan="6" class="empty-state">Sin resultados</td></tr>'
+      : list.map(p => {
+          const bajo = p.stock < 10 ? '<span class="badge-stock-bajo tag">STOCK BAJO</span>' : '';
+          return `
+          <tr>
+            <td>${p.id}</td>
+            <td>${p.nombre}</td>
+            <td>${p.categoria || ''}</td>
+            <td>${p.stock} ${bajo}</td>
+            <td>$${p.precio}</td>
+            <td>
+              ${adminActions('producto', p.id)}
+              <button class="btn btn-sm btn-primary" data-historial="${p.id}" title="Ver historial de movimientos">🔍</button>
+            </td>
+          </tr>`;
+        }).join('');
+    bindEditDelete('producto');
+    bindHistorial();
+  }
+
+  function bindHistorial() {
+    document.querySelectorAll('[data-historial]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.historial;
+        try {
+          const movs = await API.movimientos.historial ? [] : [];
+          // Usamos el endpoint directo
+          const resp = await fetch('http://localhost:8080/movimientos/producto/' + id + '/historial', {
+            headers: { Authorization: 'Bearer ' + API.getToken() }
+          });
+          if (resp.ok) {
+            const list = await resp.json();
+            showHistorialModal(id, list);
+          }
+        } catch (err) { alert(err.message); }
+      });
+    });
+  }
+
+  function showHistorialModal(productoId, list) {
+    const tipoTag = t => `<span class="tag ${t === 'ENTRADA' ? 'tag-entrada' : t === 'SALIDA' ? 'tag-salida' : 'tag-transfer'}">${t}</span>`;
+    const rows = list.length === 0
+      ? '<tr><td colspan="4" class="empty-state">Sin movimientos registrados</td></tr>'
+      : list.map(m => `
+          <tr>
+            <td>${m.id}</td>
+            <td>${new Date(m.fecha).toLocaleString('es-EC')}</td>
+            <td>${tipoTag(m.tipo)}</td>
+            <td>${m.detalles.map(d => d.productoNombre + ' x' + d.cantidad).join(', ')}</td>
+          </tr>`).join('');
+    document.getElementById('historialTitle').textContent = 'Historial del Producto #' + productoId;
+    document.getElementById('historialBody').innerHTML = rows;
+    document.getElementById('historialModal').classList.add('show');
+  }
+
+  document.getElementById('btnNewProducto').addEventListener('click', () => openProductoModal());
+
+  document.getElementById('btnSearchProducto').addEventListener('click', () => {
+    const q = document.getElementById('searchProducto').value.trim();
+    if (q) loadProductos('nombre', q);
+  });
+  document.getElementById('btnFilterCategoria').addEventListener('click', () => {
+    const q = document.getElementById('filterCategoria').value.trim();
+    if (q) loadProductos('categoria', q);
+  });
+  document.getElementById('btnProductoReset').addEventListener('click', () => {
+    document.getElementById('searchProducto').value = '';
+    document.getElementById('filterCategoria').value = '';
+    loadProductos();
   });
 
   function openProductoModal(id, data) {
@@ -150,9 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   //  MOVIMIENTOS
   // ============================================================
-  let productosCache = [];
-  let bodegasCache = [];
-
   async function loadMovimientos() {
     try {
       [productosCache, bodegasCache] = await Promise.all([API.productos.list(), API.bodegas.list()]);
@@ -175,12 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${m.usuarioUsername || ''}</td>
           <td>${(m.detalles||[]).map(d => d.productoNombre + ' x' + d.cantidad).join(', ')}</td>
         </tr>`).join('');
-    } catch (err) { showError('movimientos', err.message); }
+    } catch (err) { showTableError('movimientosBody', 6, err.message); }
   }
 
-  document.getElementById('btnNewMovimiento').addEventListener('click', () => {
-    openMovimientoModal();
-  });
+  document.getElementById('btnNewMovimiento').addEventListener('click', () => openMovimientoModal());
 
   function openMovimientoModal() {
     document.getElementById('movTipo').value = 'ENTRADA';
@@ -205,8 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('movTipo').addEventListener('change', toggleBodegaFields);
 
   function rebuildDetalleRows() {
-    const container = document.getElementById('detalleContainer');
-    container.innerHTML = '';
+    document.getElementById('detalleContainer').innerHTML = '';
     addDetalleRow();
   }
 
@@ -217,8 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     row.innerHTML = `
       <select class="det-producto">${opts}</select>
       <input type="number" class="det-cantidad" value="1" min="1" placeholder="Cant.">
-      <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
-    `;
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
     document.getElementById('detalleContainer').appendChild(row);
   }
 
@@ -228,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const tipo = document.getElementById('movTipo').value;
     const data = {
-      tipo: tipo,
+      tipo,
       bodegaOrigenId: tipo !== 'ENTRADA' ? parseInt(document.getElementById('movBodegaOrigen').value) : null,
       bodegaDestinoId: tipo !== 'SALIDA' ? parseInt(document.getElementById('movBodegaDestino').value) : null,
       detalles: []
@@ -239,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cantidad: parseInt(row.querySelector('.det-cantidad').value)
       });
     });
-    if (data.detalles.length === 0) { alert('Agregue al menos un detalle'); return; }
+    if (!data.detalles.length) { alert('Agregue al menos un detalle'); return; }
     try {
       await API.movimientos.create(data);
       document.getElementById('movimientoModal').classList.remove('show');
@@ -253,40 +320,54 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadReportes() {
     try {
       const resumen = await API.reportes.resumen();
-
       document.getElementById('statBodegas').textContent = resumen.totalBodegas;
       document.getElementById('statProductos').textContent = resumen.totalProductos;
       document.getElementById('statStockTotal').textContent = resumen.stockTotalGlobal;
-
-      // Stock por bodega
       document.getElementById('stockBodegaBody').innerHTML =
-        resumen.stockTotalPorBodega.map(s => `
-          <tr>
-            <td>${s.bodegaNombre}</td>
-            <td>${s.productoNombre}</td>
-            <td>${s.cantidad}</td>
-          </tr>`).join('');
-
-      // Productos más movidos
+        resumen.stockTotalPorBodega.map(s => `<tr><td>${s.bodegaNombre}</td><td>${s.productoNombre}</td><td>${s.cantidad}</td></tr>`).join('');
       document.getElementById('prodMovidoBody').innerHTML =
-        resumen.productosMasMovidos.map(p => `
-          <tr>
-            <td>${p.productoNombre}</td>
-            <td>${p.totalMovido}</td>
-          </tr>`).join('');
-
-      // Stock bajo
+        resumen.productosMasMovidos.map(p => `<tr><td>${p.productoNombre}</td><td>${p.totalMovido}</td></tr>`).join('');
       const bajos = await API.reportes.stockBajo();
-      document.getElementById('stockBajoBody').innerHTML =
-        bajos.length === 0
-          ? '<tr><td colspan="3" class="empty-state">No hay productos con stock bajo</td></tr>'
-          : bajos.map(p => `
-            <tr>
-              <td>${p.nombre}</td>
-              <td>${p.categoria || ''}</td>
-              <td><span class="badge-stock-bajo tag">${p.stock}</span></td>
-            </tr>`).join('');
-    } catch (err) { showError('reportes', err.message); }
+      document.getElementById('stockBajoBody').innerHTML = bajos.length === 0
+        ? '<tr><td colspan="3" class="empty-state">No hay productos con stock bajo</td></tr>'
+        : bajos.map(p => `<tr><td>${p.nombre}</td><td>${p.categoria || ''}</td><td><span class="badge-stock-bajo tag">${p.stock}</span></td></tr>`).join('');
+    } catch (err) { showTableError('stockBodegaBody', 3, err.message); }
+  }
+
+  // ============================================================
+  //  ESTADÍSTICAS
+  // ============================================================
+  async function loadEstadisticas() {
+    try {
+      const e = await API.reportes.estadisticas();
+
+      // Cards globales
+      document.getElementById('statsGlobales').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value">${e.totalUsuarios}</div></div>
+        <div class="stat-card"><div class="stat-label">Movimientos</div><div class="stat-value">${e.totalMovimientos}</div></div>
+        <div class="stat-card"><div class="stat-label">Auditorías</div><div class="stat-value">${e.totalAuditorias}</div></div>
+        <div class="stat-card"><div class="stat-label">Valor Total ($)</div><div class="stat-value" style="font-size:24px;">${Number(e.valorTotalInventario||0).toFixed(2)}</div></div>
+      `;
+
+      document.getElementById('statsTipoBody').innerHTML =
+        e.movimientosPorTipo.map(r => `<tr><td>${r.tipo}</td><td>${r.cantidad}</td></tr>`).join('') || noData(2);
+
+      document.getElementById('statsMesBody').innerHTML =
+        e.movimientosPorMes.map(r => {
+          const meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+          return `<tr><td>${r.anio}</td><td>${meses[r.mes] || r.mes}</td><td>${r.cantidad}</td></tr>`;
+        }).join('') || noData(3);
+
+      document.getElementById('statsCatBody').innerHTML =
+        e.productosPorCategoria.map(r => `<tr><td>${r.categoria}</td><td>${r.productos}</td><td>${r.stockTotal}</td></tr>`).join('') || noData(3);
+
+      document.getElementById('statsValorBody').innerHTML =
+        e.valorPorBodega.map(r => `<tr><td>${r.bodega}</td><td>$${Number(r.valor||0).toFixed(2)}</td></tr>`).join('') || noData(2);
+    } catch (err) { document.getElementById('statsGlobales').innerHTML = '<p style="color:red">Error: ' + err.message + '</p>'; }
+  }
+
+  function noData(cols) {
+    return `<tr><td colspan="${cols}" class="empty-state">Sin datos</td></tr>`;
   }
 
   // ============================================================
@@ -295,13 +376,33 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadAuditorias() {
     try {
       const list = await API.auditorias.list();
-      const tbody = document.getElementById('auditoriasBody');
-      if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay registros de auditoría</td></tr>';
-        return;
-      }
-      const tipoTag = t => '<span class="tag ' + (t === 'INSERT' ? 'tag-entrada' : t === 'DELETE' ? 'tag-salida' : 'tag-transfer') + '">' + t + '</span>';
-      tbody.innerHTML = list.map(a => `
+      renderAuditorias(list);
+    } catch (err) { showTableError('auditoriasBody', 6, err.message); }
+  }
+
+  document.getElementById('btnFiltroUsuario').addEventListener('click', async () => {
+    const u = document.getElementById('filtroUsuario').value.trim();
+    if (!u) return;
+    try { renderAuditorias(await API.auditorias.byUsuario(u)); } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById('btnFiltroTipo').addEventListener('click', async () => {
+    try { renderAuditorias(await API.auditorias.byTipo(document.getElementById('filtroTipo').value)); } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById('btnFiltroEntidad').addEventListener('click', async () => {
+    const e = document.getElementById('filtroEntidad').value.trim();
+    if (!e) return;
+    try { renderAuditorias(await API.auditorias.byEntidad(e)); } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById('btnAudAll').addEventListener('click', loadAuditorias);
+
+  function renderAuditorias(list) {
+    const tipoTag = t => `<span class="tag ${t === 'INSERT' ? 'tag-entrada' : t === 'DELETE' ? 'tag-salida' : 'tag-transfer'}">${t}</span>`;
+    document.getElementById('auditoriasBody').innerHTML = list.length === 0
+      ? '<tr><td colspan="6" class="empty-state">Sin registros</td></tr>'
+      : list.map(a => `
         <tr>
           <td>${a.id}</td>
           <td>${new Date(a.fechaHora).toLocaleString('es-EC')}</td>
@@ -313,53 +414,52 @@ document.addEventListener('DOMContentLoaded', () => {
             ${a.valoresNuevos ? '<br><b>Nuevo:</b> ' + truncate(a.valoresNuevos, 120) : ''}
           </td>
         </tr>`).join('');
-    } catch (err) { showError('auditorias', err.message); }
   }
 
-  // Filtros de auditoría
-  document.getElementById('btnFiltroUsuario').addEventListener('click', async () => {
-    const u = document.getElementById('filtroUsuario').value.trim();
-    if (!u) return;
+  // ============================================================
+  //  PERFIL
+  // ============================================================
+  async function loadPerfil() {
     try {
-      const list = await API.auditorias.byUsuario(u);
-      renderAuditorias(list);
+      const p = await API.auth.perfil();
+      document.querySelector('#perfilTable tbody').innerHTML = `
+        <tr><th>ID</th><td>${p.id}</td></tr>
+        <tr><th>Username</th><td>${p.username}</td></tr>
+        <tr><th>Nombre</th><td>${p.nombre}</td></tr>
+        <tr><th>Email</th><td>${p.email}</td></tr>
+        <tr><th>Rol</th><td>${p.rol === 'ADMIN' ? '<span class="tag tag-admin">ADMIN</span>' : '<span class="tag tag-empleado">EMPLEADO</span>'}</td></tr>
+      `;
     } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('btnFiltroTipo').addEventListener('click', async () => {
-    const t = document.getElementById('filtroTipo').value;
-    try {
-      const list = await API.auditorias.byTipo(t);
-      renderAuditorias(list);
-    } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('btnFiltroEntidad').addEventListener('click', async () => {
-    const e = document.getElementById('filtroEntidad').value.trim();
-    if (!e) return;
-    try {
-      const list = await API.auditorias.byEntidad(e);
-      renderAuditorias(list);
-    } catch (err) { alert(err.message); }
-  });
-
-  document.getElementById('btnAudAll').addEventListener('click', loadAuditorias);
-
-  function renderAuditorias(list) {
-    const tipoTag = t => '<span class="tag ' + (t === 'INSERT' ? 'tag-entrada' : t === 'DELETE' ? 'tag-salida' : 'tag-transfer') + '">' + t + '</span>';
-    document.getElementById('auditoriasBody').innerHTML = list.map(a => `
-      <tr>
-        <td>${a.id}</td>
-        <td>${new Date(a.fechaHora).toLocaleString('es-EC')}</td>
-        <td>${tipoTag(a.tipoOperacion)}</td>
-        <td>${a.entidad}${a.entidadId ? ' #' + a.entidadId : ''}</td>
-        <td>${a.usuario || ''}</td>
-        <td style="max-width:300px;font-size:11px;color:var(--text-light);">
-          ${a.valoresAnteriores ? '<b>Ant:</b> ' + truncate(a.valoresAnteriores, 120) : ''}
-          ${a.valoresNuevos ? '<br><b>Nuevo:</b> ' + truncate(a.valoresNuevos, 120) : ''}
-        </td>
-      </tr>`).join('');
   }
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById('alertPerfil');
+    alertEl.style.display = 'none';
+
+    const pwNueva = document.getElementById('pwNueva').value;
+    const pwConfirm = document.getElementById('pwConfirm').value;
+    if (pwNueva !== pwConfirm) {
+      alertEl.textContent = 'Las contraseñas no coinciden';
+      alertEl.className = 'alert alert-error';
+      alertEl.style.display = 'block';
+      return;
+    }
+    try {
+      await API.auth.cambiarPassword({
+        passwordActual: document.getElementById('pwActual').value,
+        passwordNueva: pwNueva
+      });
+      alertEl.textContent = 'Contraseña cambiada exitosamente';
+      alertEl.className = 'alert alert-success';
+      alertEl.style.display = 'block';
+      document.getElementById('passwordForm').reset();
+    } catch (err) {
+      alertEl.textContent = err.message;
+      alertEl.className = 'alert alert-error';
+      alertEl.style.display = 'block';
+    }
+  });
 
   // ============================================================
   //  Helpers
@@ -375,13 +475,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-edit="' + tipo + '"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
-        if (tipo === 'bodega') {
-          const b = await API.bodegas.get(id);
-          openBodegaModal(id, b);
-        } else {
-          const p = await API.productos.get(id);
-          openProductoModal(id, p);
-        }
+        if (tipo === 'bodega') openBodegaModal(id, await API.bodegas.get(id));
+        else openProductoModal(id, await API.productos.get(id));
       });
     });
     document.querySelectorAll('[data-del="' + tipo + '"]').forEach(btn => {
@@ -400,25 +495,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return s.length > n ? s.substring(0, n) + '…' : s;
   }
 
-  function showError(tab, msg) {
-    const section = document.getElementById(tab);
-    let err = section.querySelector('.empty-state');
-    if (!err) {
-      err = document.createElement('div');
-      err.className = 'empty-state';
-      section.querySelector('.table-wrapper')?.prepend(err) || section.prepend(err);
-    }
-    err.textContent = 'Error: ' + msg;
+  function showTableError(tbodyId, cols, msg) {
+    const tbody = document.getElementById(tbodyId);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="${cols}" class="empty-state" style="color:red">Error: ${msg}</td></tr>`;
   }
 
-  // Cerrar modales
   document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.modal-overlay').classList.remove('show');
-    });
+    btn.addEventListener('click', () => btn.closest('.modal-overlay').classList.remove('show'));
   });
 
-  // Control de pestañas basado en rol
   if (!isAdmin) {
     document.getElementById('btnNewBodega').style.display = 'none';
     document.getElementById('btnNewProducto').style.display = 'none';
@@ -430,7 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'productos': loadProductos(); break;
       case 'movimientos': loadMovimientos(); break;
       case 'reportes': loadReportes(); break;
+      case 'estadisticas': loadEstadisticas(); break;
       case 'auditorias': loadAuditorias(); break;
+      case 'perfil': loadPerfil(); break;
     }
   }
 });

@@ -1,5 +1,6 @@
 package com.logitracksa.project.controller;
 
+import com.logitracksa.project.model.dto.response.EstadisticasResponse;
 import com.logitracksa.project.model.dto.response.MovimientoResponse;
 import com.logitracksa.project.model.dto.response.ProductoResponse;
 import com.logitracksa.project.model.dto.response.ReporteResponse;
@@ -16,6 +17,7 @@ import java.util.List;
 
 /**
  * Reportes y consultas avanzadas.
+ * Incluye el resumen general, stock bajo, estadísticas agregadas y movimientos por fecha.
  */
 @RestController
 @RequestMapping("/reportes")
@@ -31,13 +33,22 @@ public class ReporteController {
     }
 
     @GetMapping("/resumen")
-    @Operation(summary = "Resumen general", description = "Stock total por bodega y productos más movidos")
+    @Operation(summary = "Resumen general",
+               description = "Stock total por bodega, productos más movidos y totales del sistema.")
     public ResponseEntity<ReporteResponse> resumenGeneral() {
         return ResponseEntity.ok(reporteService.resumenGeneral());
     }
 
+    @GetMapping("/estadisticas")
+    @Operation(summary = "Estadísticas agregadas (GROUP BY)",
+               description = "Movimientos por tipo, movimientos por mes, productos por categoría, "
+                           + "valor monetario por bodega y valor total del inventario.")
+    public ResponseEntity<EstadisticasResponse> estadisticas() {
+        return ResponseEntity.ok(reporteService.estadisticas());
+    }
+
     @GetMapping("/stock-bajo")
-    @Operation(summary = "Productos con stock bajo", description = "Productos con menos de 10 unidades")
+    @Operation(summary = "Productos con stock bajo (menos de 10 unidades)")
     public ResponseEntity<List<ProductoResponse>> stockBajo() {
         return ResponseEntity.ok(reporteService.stockBajo());
     }
