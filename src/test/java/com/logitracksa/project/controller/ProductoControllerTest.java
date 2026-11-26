@@ -1,6 +1,7 @@
 package com.logitracksa.project.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.logitracksa.project.exception.ResourceNotFoundException;
 import com.logitracksa.project.model.dto.request.ProductoRequest;
 import com.logitracksa.project.model.dto.response.ProductoResponse;
@@ -9,7 +10,7 @@ import com.logitracksa.project.service.ProductoService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,13 +38,13 @@ class ProductoControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    // ObjectMapper instanciado directamente: no es un bean en @WebMvcTest de Boot 4
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     @MockitoBean
     private ProductoService productoService;
 
-    // Necesario para que JwtAuthenticationFilter arranque sin NPE
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
