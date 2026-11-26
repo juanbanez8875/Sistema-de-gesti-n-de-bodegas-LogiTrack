@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests de integración para ProductoRepository.
- * Usa @DataJpaTest — levanta solo el contexto JPA con H2 en memoria.
+ * Usa @DataJpaTest (Boot 4): levanta solo el contexto JPA con H2 en memoria.
  */
 @DataJpaTest
 @DisplayName("ProductoRepository — Tests de integración")
@@ -44,7 +44,7 @@ class ProductoRepositoryTest {
     // ---- findByStockLessThan ----
 
     @Test
-    @DisplayName("findByStockLessThan debe devolver productos con stock menor al umbral")
+    @DisplayName("findByStockLessThan debe devolver productos con stock bajo el umbral")
     void findByStockLessThan_deberiaRetornarStockBajo() {
         List<Producto> result = productoRepository.findByStockLessThan(10);
         assertThat(result).hasSize(3);
@@ -52,7 +52,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
-    @DisplayName("findByStockLessThan con umbral 0 no debería devolver nada")
+    @DisplayName("findByStockLessThan con umbral 0 no devuelve nada")
     void findByStockLessThan_conCero_noDevuelveNada() {
         List<Producto> result = productoRepository.findByStockLessThan(0);
         assertThat(result).isEmpty();
@@ -61,7 +61,7 @@ class ProductoRepositoryTest {
     // ---- buscarPorNombre ----
 
     @Test
-    @DisplayName("buscarPorNombre debería encontrar coincidencias parciales")
+    @DisplayName("buscarPorNombre debe encontrar coincidencias parciales")
     void buscarPorNombre_deberiaEncontrarCoincidenciasParciales() {
         List<Producto> result = productoRepository.buscarPorNombre("arro");
         assertThat(result).hasSize(1);
@@ -69,7 +69,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
-    @DisplayName("buscarPorNombre debería ser insensible a mayúsculas")
+    @DisplayName("buscarPorNombre debe ser insensible a mayúsculas")
     void buscarPorNombre_deberiaSerInsensible() {
         List<Producto> upper = productoRepository.buscarPorNombre("ACEITE");
         List<Producto> lower = productoRepository.buscarPorNombre("aceite");
@@ -78,7 +78,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
-    @DisplayName("buscarPorNombre sin resultados debería devolver lista vacía")
+    @DisplayName("buscarPorNombre sin resultados devuelve lista vacía")
     void buscarPorNombre_sinResultados_devuelveVacio() {
         List<Producto> result = productoRepository.buscarPorNombre("xxxxxxxx");
         assertThat(result).isEmpty();
@@ -87,32 +87,32 @@ class ProductoRepositoryTest {
     // ---- buscarPorCategoria ----
 
     @Test
-    @DisplayName("buscarPorCategoria debería retornar productos de esa categoría")
+    @DisplayName("buscarPorCategoria debe retornar los productos de esa categoría")
     void buscarPorCategoria_deberiaRetornarProductosDeLaCategoria() {
         List<Producto> result = productoRepository.buscarPorCategoria("Alimentos");
         assertThat(result).hasSize(4);
     }
 
     @Test
-    @DisplayName("buscarPorCategoria debería ser insensible a mayúsculas")
+    @DisplayName("buscarPorCategoria debe ser insensible a mayúsculas")
     void buscarPorCategoria_insensibleAMayusculas() {
         List<Producto> upper = productoRepository.buscarPorCategoria("LIMPIEZA");
         List<Producto> lower = productoRepository.buscarPorCategoria("limpieza");
-        assertThat(upper).isEqualTo(lower);
+        assertThat(upper).hasSize(1);
+        assertThat(lower).hasSize(1);
     }
 
     // ---- estadisticasPorCategoria ----
 
     @Test
-    @DisplayName("estadisticasPorCategoria debe agrupar correctamente por categoría")
+    @DisplayName("estadisticasPorCategoria debe agrupar correctamente")
     void estadisticasPorCategoria_deberiaAgrupar() {
         List<Object[]> result = productoRepository.estadisticasPorCategoria();
         assertThat(result).isNotEmpty();
-        // Categoría "Alimentos" debe tener 4 productos
         result.stream()
-                .filter(r -> "Alimentos".equals(r[0]))
-                .findFirst()
-                .ifPresent(r -> assertThat(((Number) r[1]).longValue()).isEqualTo(4));
+              .filter(r -> "Alimentos".equals(r[0]))
+              .findFirst()
+              .ifPresent(r -> assertThat(((Number) r[1]).longValue()).isEqualTo(4));
     }
 
     // ---- valorTotalInventario ----
@@ -127,7 +127,7 @@ class ProductoRepositoryTest {
     // ---- paginación ----
 
     @Test
-    @DisplayName("findAll paginado debe respetar el tamaño de página")
+    @DisplayName("paginación debe respetar el tamaño de página")
     void findAll_paginado_respetaTamanio() {
         Page<Producto> page = productoRepository.findAll(
                 PageRequest.of(0, 3, Sort.by("nombre")));
@@ -137,7 +137,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
-    @DisplayName("findAll paginado segunda página debe tener los elementos restantes")
+    @DisplayName("segunda página debe tener los elementos restantes")
     void findAll_paginado_segundaPagina() {
         Page<Producto> page = productoRepository.findAll(
                 PageRequest.of(1, 4, Sort.by("nombre")));

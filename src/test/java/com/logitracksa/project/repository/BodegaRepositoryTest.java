@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 import java.util.List;
 
@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests de integración para BodegaRepository.
+ * Usa @DataJpaTest (Boot 4): levanta solo el contexto JPA con H2 en memoria.
  */
 @DataJpaTest
 @DisplayName("BodegaRepository — Tests de integración")
@@ -27,9 +28,9 @@ class BodegaRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        em.persist(bodega("Bodega Central", "Av. Industrial 100, Guayaquil", 5000));
-        em.persist(bodega("Bodega Norte",   "Km 15 Vía a la Costa, Manta",  3000));
-        em.persist(bodega("Bodega Sur",     "Panamericana Sur 200, Cuenca",  2000));
+        em.persist(build("Bodega Central", "Av. Industrial 100, Guayaquil", 5000));
+        em.persist(build("Bodega Norte",   "Km 15 Vía a la Costa, Manta",  3000));
+        em.persist(build("Bodega Sur",     "Panamericana Sur 200, Cuenca",  2000));
         em.flush();
     }
 
@@ -68,7 +69,7 @@ class BodegaRepositoryTest {
         assertThat(bodegaRepository.count()).isEqualTo(3);
     }
 
-    private Bodega bodega(String nombre, String ubicacion, int capacidad) {
+    private Bodega build(String nombre, String ubicacion, int capacidad) {
         Bodega b = new Bodega();
         b.setNombre(nombre);
         b.setUbicacion(ubicacion);
